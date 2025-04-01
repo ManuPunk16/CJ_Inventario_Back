@@ -57,4 +57,8 @@ const inventarioSchema = new mongoose.Schema({
   }
 });
 
+// Crear índices
+inventarioSchema.index({ nombre: 1 }); // Ejemplo: índice en el campo 'nombre'
+inventarioSchema.index({ tipoMaterial: 1, nombre: 1 }); // Ejemplo: índice compuesto
+
 module.exports = mongoose.model('Inventario', inventarioSchema, 'inventario');
