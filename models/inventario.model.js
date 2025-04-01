@@ -43,7 +43,24 @@ const inventarioSchema = new mongoose.Schema({
     hora: { type: String, required: true },
     cantidad: { type: Number, required: true },
     motivo: { type: String },
-    area: { type: String },
+    area: {
+      type: String,
+      enum: [
+        'CONSEJERO JURÍDICO',
+        'SECRETARIA PARTICULAR Y DE COMUNICACIÓN SOCIAL',
+        'DIRECCIÓN DE COORDINACIÓN Y CONTROL DE GESTIÓN',
+        'DIRECCIÓN GENERAL DE LO CONTENCIOSO',
+        'DIRECCIÓN DE ASISTENCIA TÉCNICA Y COMBATE A LA CORRUPCIÓN',
+        'DIRECCIÓN DE SERVICIOS LEGALES',
+        'DIRECCIÓN GENERAL CONSULTIVA',
+        'DIRECCIÓN DE ESTUDIOS LEGISLATIVOS',
+        'DIRECCIÓN DE ESTUDIOS JURÍDICOS',
+        'DIRECCIÓN DE COMPILACIÓN NORMATIVA, ARCHIVO E IGUALDAD DE GÉNERO',
+        'DIRECCIÓN ADMINISTRATIVA',
+        'UNIDAD DE TRANSPARENCIA'
+      ],
+      required: true
+    },
     solicitante: { type: String, required: true },
     quienEntrega: { type: String, required: true }
   }],
