@@ -4,6 +4,7 @@ const connectDB = require('./config/db');
 const inventarioRoutes = require('./routes/inventario.routes');
 const errorHandler = require('./middleware/error.middleware');
 const logger = require('./utils/logger');
+const authRoutes = require('./routes/auth.routes');
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ app.use(express.json());
 
 // Rutas del inventario
 app.use('/api/inventario', inventarioRoutes);
+app.use('/api/auth', authRoutes);
 
 // Middleware para el manejo de errores
 app.use(errorHandler);

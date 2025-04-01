@@ -1,0 +1,26 @@
+const express = require('express');
+const router = express.Router();
+const authController = require('../controllers/auth.controller');
+const { body } = require('express-validator');
+
+// Registrar un nuevo usuario
+router.post(
+  '/register',
+  [
+    body('username', 'El nombre de usuario es requerido').notEmpty(),
+    body('password', 'La contraseña debe tener al menos 6 caracteres').isLength({ min: 6 })
+  ],
+  authController.register
+);
+
+// Iniciar sesión
+router.post(
+  '/login',
+  [
+    body('username', 'El nombre de usuario es requerido').notEmpty(),
+    body('password', 'La contraseña es requerida').notEmpty()
+  ],
+  authController.login
+);
+
+module.exports = router;

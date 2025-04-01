@@ -3,3 +3,4 @@
 {"level":"info","message":"Server running in undefined mode on port 5000","timestamp":"2025-04-01T16:33:29.333Z"}
 {"level":"info","message":"MongoDB Connected: 127.0.0.1","timestamp":"2025-04-01T16:33:29.356Z"}
 {"level":"info","message":"Server running in development mode on port 5000","timestamp":"2025-04-01T16:34:23.519Z"}
+{"level":"info","message":"Usuario registrado: administrator con rol: admin","timestamp":"2025-04-01T17:04:56.544Z"}
