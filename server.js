@@ -5,7 +5,7 @@ const inventarioRoutes = require('./routes/inventario.routes');
 const errorHandler = require('./middleware/error.middleware');
 const logger = require('./utils/logger');
 const authRoutes = require('./routes/auth.routes');
-const xss = require('xss-clean');
+// const xss = require('xss-clean');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -15,12 +15,19 @@ dotenv.config();
 
 const app = express();
 
+const corsOptions = {
+  origin: "*", // O una lista de orígenes específicos para mayor seguridad
+  methods: "GET, POST, OPTIONS, PUT, DELETE, PATCH",
+  allowedHeaders: "Authorization, X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, x-access-token",
+  credentials: true 
+};
+
 // Conectar a la base de datos
 connectDB();
 
 // Middleware para parsear el cuerpo de las solicitudes
 app.use(express.json());
-app.use(xss());
+// app.use(xss());
 app.use(helmet());
 
 const limiter = rateLimit({
@@ -32,14 +39,7 @@ const limiter = rateLimit({
 // Aplicar el middleware a todas las rutas
 app.use(limiter);
 
-app.use(cors()); // Permite todas las solicitudes CORS (no recomendado para producción)
-
-// Para producción, configurar CORS de forma más restrictiva:
-// const corsOptions = {
-//   origin: 'https://tu-dominio.com', // Reemplaza con tu dominio
-//   optionsSuccessStatus: 200 // Algunos navegadores requieren esto
-// };
-// app.use(cors(corsOptions));
+app.use(cors(corsOptions));
 
 // Middleware para registrar las solicitudes HTTP
 app.use(morgan('dev')); // 'dev' es un formato predefinido para desarrollo

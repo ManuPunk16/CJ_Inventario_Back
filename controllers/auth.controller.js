@@ -46,15 +46,14 @@ exports.login = async (req, res) => {
     // Generar token JWT
     const payload = {
       user: {
-        id: user.id,
-        role: user.role
+        id: user.id
       }
     };
 
     jwt.sign(
       payload,
       process.env.ACCESS_TOKEN_SECRET,
-      { expiresIn: process.env.ACCESS_TOKEN_EXPIRATION },
+      { expiresIn: '1h' }, // Tiempo de expiración del token
       (err, token) => {
         if (err) throw err;
         logger.info(`Usuario ${user.username} inició sesión`);
@@ -69,10 +68,16 @@ exports.login = async (req, res) => {
 
 // Middleware para verificar el token JWT
 exports.verifyToken = (req, res, next) => {
-  const token = req.header('Authorization');
+  const authHeader = req.header('Authorization');
+
+  if (!authHeader) {
+    return res.status(401).json({ status: 'error', message: 'No hay token, autorización denegada' });
+  }
+
+  const token = authHeader.split(' ')[1]; // Extraer el token del encabezado "Bearer <token>"
 
   if (!token) {
-    return res.status(401).json({ status: 'error', message: 'No hay token, autorización denegada' });
+    return res.status(401).json({ status: 'error', message: 'Token inválido' });
   }
 
   try {
@@ -80,6 +85,7 @@ exports.verifyToken = (req, res, next) => {
     req.user = decoded.user;
     next();
   } catch (error) {
+    console.error('Error al verificar el token:', error.message); // Agregar log de error
     res.status(401).json({ status: 'error', message: 'Token inválido' });
   }
 };
