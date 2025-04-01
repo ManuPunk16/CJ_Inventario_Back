@@ -1,0 +1,29 @@
+{
+  "name": "cj_inventario_back",
+  "version": "1.0.0",
+  "description": "Inventarios CJ API",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ManuPunk16/CJ_Inventario_Back.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ManuPunk16/CJ_Inventario_Back/issues"
+  },
+  "homepage": "https://github.com/ManuPunk16/CJ_Inventario_Back#readme",
+  "keywords": [],
+  "type": "commonjs",
+  "dependencies": {
+    "mongodb": "^6.15.0",
+    "mongoose": "^8.13.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
