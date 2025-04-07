@@ -1,5 +1,22 @@
 const mongoose = require('mongoose');
 
+const ubicacionSchema = new mongoose.Schema({
+  anaquel: {
+    type: String,
+    required: true,
+    uppercase: true
+  },
+  nivel: {
+    type: Number,
+    required: true,
+    min: 1
+  },
+  observaciones: {
+    type: String,
+    uppercase: true
+  }
+});
+
 const inventarioSchema = new mongoose.Schema({
   tipoMaterial: {
     type: String,
@@ -33,10 +50,21 @@ const inventarioSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  ubicacion: {
+    type: ubicacionSchema,
+    required: true
+  },
+  codigoUbicacion: {
+    type: String,
+    // unique: true,
+    required: true
+  },
   entradas: [{
     fecha: { type: Date, default: Date.now },
     cantidad: { type: Number, required: true },
-    proveedor: { type: String }
+    proveedor: { type: String },
+    ubicacionAnterior: ubicacionSchema,
+    ubicacionNueva: ubicacionSchema
   }],
   salidas: [{
     fecha: { type: Date, default: Date.now },
@@ -74,8 +102,21 @@ const inventarioSchema = new mongoose.Schema({
   }
 });
 
-// Crear índices
-inventarioSchema.index({ nombre: 1 }); // Ejemplo: índice en el campo 'nombre'
-inventarioSchema.index({ tipoMaterial: 1, nombre: 1 }); // Ejemplo: índice compuesto
+// Middleware para generar automáticamente el código de ubicación
+inventarioSchema.pre('save', function(next) {
+  if (!this.codigoUbicacion) {
+    const ubicacion = this.ubicacion;
+    // Formato: ANA-NIV
+    // Ejemplo: A01-N1
+    this.codigoUbicacion = `${ubicacion.anaquel}-N${ubicacion.nivel}`;
+  }
+  next();
+});
+
+// Índices
+inventarioSchema.index({ nombre: 1 });
+inventarioSchema.index({ tipoMaterial: 1, nombre: 1 });
+inventarioSchema.index({ 'ubicacion.anaquel': 1 });
+inventarioSchema.index({ codigoUbicacion: 1 }, { unique: true });
 
 module.exports = mongoose.model('Inventario', inventarioSchema, 'inventario');
