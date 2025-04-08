@@ -7,8 +7,11 @@ const { body } = require('express-validator');
 router.post(
   '/register',
   [
+    authController.verifyToken,          // Verificar token
+    authController.authorizeRole(['admin']), // Verificar rol admin
     body('username', 'El nombre de usuario es requerido').notEmpty(),
-    body('password', 'La contraseña debe tener al menos 6 caracteres').isLength({ min: 6 })
+    body('password', 'La contraseña debe tener al menos 6 caracteres').isLength({ min: 6 }),
+    body('role', 'El rol debe ser admin o user').isIn(['admin', 'user'])
   ],
   authController.register
 );

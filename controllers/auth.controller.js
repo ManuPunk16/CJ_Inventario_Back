@@ -7,22 +7,41 @@ const logger = require('../utils/logger');
 // Registrar un nuevo usuario
 exports.register = async (req, res) => {
   try {
-    const { username, password, role } = req.body; // Obtener el rol del cuerpo de la solicitud
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'Error de validación', 
+        errors: errors.array() 
+      });
+    }
+
+    const { username, password, role } = req.body;
 
     // Verificar si el usuario ya existe
     const existingUser = await User.findOne({ username });
     if (existingUser) {
-      return res.status(400).json({ status: 'error', message: 'El usuario ya existe' });
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'El usuario ya existe' 
+      });
     }
 
-    const newUser = new User({ username, password, role }); // Pasar el rol al crear el usuario
+    const newUser = new User({ username, password, role });
     await newUser.save();
 
     logger.info(`Usuario registrado: ${newUser.username} con rol: ${newUser.role}`);
-    res.status(201).json({ status: 'success', message: 'Usuario registrado exitosamente' });
+    res.status(201).json({ 
+      status: 'success', 
+      message: 'Usuario registrado exitosamente' 
+    });
   } catch (error) {
     logger.error(`Error al registrar usuario: ${error.message}`);
-    res.status(500).json({ status: 'error', message: 'Error al registrar usuario' });
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Error al registrar usuario',
+      error: error.message 
+    });
   }
 };
 

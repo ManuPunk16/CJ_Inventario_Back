@@ -5,11 +5,32 @@ const logger = require('../utils/logger');
 // Obtener todos los elementos del inventario
 exports.getAllInventario = async (req, res) => {
   try {
-    const inventario = await Inventario.find();
-    res.status(200).json({ status: 'success', data: inventario });
+    const page = parseInt(req.query.page) || 0;
+    const pageSize = parseInt(req.query.pageSize) || 25;
+    const skip = page * pageSize;
+
+    // Obtener total de documentos
+    const total = await Inventario.countDocuments();
+
+    // Obtener items paginados
+    const inventario = await Inventario.find()
+      .skip(skip)
+      .limit(pageSize)
+      .sort({ fechaActualizacion: -1 });
+
+    res.status(200).json({
+      status: 'success',
+      items: inventario,
+      totalItems: total,
+      page: page,
+      totalPages: Math.ceil(total / pageSize)
+    });
   } catch (error) {
     logger.error(`Error getting all inventario: ${error.message}`);
-    res.status(500).json({ status: 'error', message: 'Error al obtener el inventario' });
+    res.status(500).json({
+      status: 'error',
+      message: 'Error al obtener el inventario'
+    });
   }
 };
 
