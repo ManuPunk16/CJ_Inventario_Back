@@ -27,6 +27,7 @@ exports.register = async (req, res) => {
 };
 
 // Iniciar sesión
+// En el método login
 exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -43,21 +44,31 @@ exports.login = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Credenciales inválidas' });
     }
 
-    // Generar token JWT
+    // Modificar el payload para incluir el rol
     const payload = {
       user: {
-        id: user.id
+        id: user.id,
+        role: user.role // Incluir el rol en el token
       }
     };
 
     jwt.sign(
       payload,
       process.env.ACCESS_TOKEN_SECRET,
-      { expiresIn: '1h' }, // Tiempo de expiración del token
+      { expiresIn: '1h' },
       (err, token) => {
         if (err) throw err;
         logger.info(`Usuario ${user.username} inició sesión`);
-        res.status(200).json({ status: 'success', token });
+        // Enviar también la información del usuario
+        res.status(200).json({ 
+          status: 'success', 
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            role: user.role
+          }
+        });
       }
     );
   } catch (error) {
