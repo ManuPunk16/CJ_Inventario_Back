@@ -149,7 +149,20 @@ exports.addSalida = [
   body('hora').notEmpty().withMessage('La hora es requerida'),
   body('cantidad').isInt({ min: 1 }).withMessage('La cantidad debe ser un número entero positivo'),
   body('motivo').notEmpty().withMessage('El motivo es requerido'),
-  body('area').isIn(['Administración', 'Contabilidad', 'Comedor', 'Mantenimiento', 'Almacén', 'Producción', 'Ventas', 'Otro']).withMessage('Área inválida'),
+  body('area').isIn([
+    'CONSEJERO JURÍDICO',
+    'SECRETARIA PARTICULAR Y DE COMUNICACIÓN SOCIAL',
+    'DIRECCIÓN DE COORDINACIÓN Y CONTROL DE GESTIÓN',
+    'DIRECCIÓN GENERAL DE LO CONTENCIOSO',
+    'DIRECCIÓN DE ASISTENCIA TÉCNICA Y COMBATE A LA CORRUPCIÓN',
+    'DIRECCIÓN DE SERVICIOS LEGALES',
+    'DIRECCIÓN GENERAL CONSULTIVA',
+    'DIRECCIÓN DE ESTUDIOS LEGISLATIVOS',
+    'DIRECCIÓN DE ESTUDIOS JURÍDICOS',
+    'DIRECCIÓN DE COMPILACIÓN NORMATIVA, ARCHIVO E IGUALDAD DE GÉNERO',
+    'DIRECCIÓN ADMINISTRATIVA',
+    'UNIDAD DE TRANSPARENCIA'
+  ]).withMessage('Área inválida'),
   body('solicitante').notEmpty().withMessage('El solicitante es requerido'),
   body('quienEntrega').notEmpty().withMessage('Quien entrega es requerido'),
 
