@@ -110,3 +110,30 @@ exports.authorizeRole = (roles) => {
     next();
   };
 };
+
+// auth.controller.js
+exports.refreshToken = async (req, res) => {
+  const { refreshToken } = req.body;
+  
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const accessToken = jwt.sign(
+      { user: decoded.user },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: '1h' }
+    );
+    
+    const newRefreshToken = jwt.sign(
+      { user: decoded.user },
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    res.json({
+      accessToken,
+      refreshToken: newRefreshToken
+    });
+  } catch (error) {
+    res.status(401).json({ message: 'Invalid refresh token' });
+  }
+};
