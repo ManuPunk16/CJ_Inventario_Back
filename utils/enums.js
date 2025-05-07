@@ -1,0 +1,58 @@
+/**
+ * Constantes y enumeraciones para la aplicación
+ * @module enums
+ */
+
+/**
+ * Áreas de la organización
+ * @enum {string}
+ */
+const AREAS = Object.freeze({
+  CONSEJERO_JURIDICO: 'CONSEJERO JURÍDICO',
+  SECRETARIA_PARTICULAR: 'SECRETARIA PARTICULAR Y DE COMUNICACIÓN SOCIAL',
+  DIRECCION_COORDINACION: 'DIRECCIÓN DE COORDINACIÓN Y CONTROL DE GESTIÓN',
+  DIRECCION_CONTENCIOSO: 'DIRECCIÓN GENERAL DE LO CONTENCIOSO',
+  DIRECCION_ASISTENCIA: 'DIRECCIÓN DE ASISTENCIA TÉCNICA Y COMBATE A LA CORRUPCIÓN',
+  DIRECCION_SERVICIOS: 'DIRECCIÓN DE SERVICIOS LEGALES',
+  DIRECCION_CONSULTIVA: 'DIRECCIÓN GENERAL CONSULTIVA',
+  DIRECCION_ESTUDIOS_LEG: 'DIRECCIÓN DE ESTUDIOS LEGISLATIVOS', 
+  DIRECCION_ESTUDIOS_JUR: 'DIRECCIÓN DE ESTUDIOS JURÍDICOS',
+  DIRECCION_COMPILACION: 'DIRECCIÓN DE COMPILACIÓN NORMATIVA, ARCHIVO E IGUALDAD DE GÉNERO',
+  DIRECCION_ADMINISTRATIVA: 'DIRECCIÓN ADMINISTRATIVA',
+  UNIDAD_TRANSPARENCIA: 'UNIDAD DE TRANSPARENCIA',
+  LIMPIEZA: 'LIMPIEZA'
+});
+
+/**
+ * Tipos de material
+ * @enum {string}
+ */
+const TIPO_MATERIAL = Object.freeze({
+  OFICINA: 'oficina',
+  LIMPIEZA: 'limpieza',
+  VARIOS: 'varios'
+});
+
+/**
+ * Unidades de medida
+ * @enum {string}
+ */
+const UNIDAD_MEDIDA = Object.freeze({
+  PIEZA: 'pieza',
+  LITRO: 'litro',
+  KILOGRAMO: 'kilogramo',
+  METRO: 'metro',
+  GRAMO: 'gramo',
+  MILILITRO: 'mililitro',
+  UNIDAD: 'unidad',
+  CAJA: 'caja',
+  PAQUETE: 'paquete',
+  ROLLO: 'rollo',
+  OTRO: 'otro'
+});
+
+module.exports = {
+  AREAS,
+  TIPO_MATERIAL,
+  UNIDAD_MEDIDA
+};

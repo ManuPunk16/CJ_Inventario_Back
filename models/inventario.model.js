@@ -85,7 +85,8 @@ const inventarioSchema = new mongoose.Schema({
         'DIRECCIÓN DE ESTUDIOS JURÍDICOS',
         'DIRECCIÓN DE COMPILACIÓN NORMATIVA, ARCHIVO E IGUALDAD DE GÉNERO',
         'DIRECCIÓN ADMINISTRATIVA',
-        'UNIDAD DE TRANSPARENCIA'
+        'UNIDAD DE TRANSPARENCIA',
+        'LIMPIEZA',
       ],
       required: true
     },

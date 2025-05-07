@@ -4,6 +4,7 @@ const connectDB = require('./config/db');
 const inventarioRoutes = require('./routes/inventario.routes');
 const errorHandler = require('./middleware/error.middleware');
 const logger = require('./utils/logger');
+const errorMiddleware = require('./middleware/error.middleware');
 const authRoutes = require('./routes/auth.routes');
 // const xss = require('xss-clean');
 const rateLimit = require('express-rate-limit');
@@ -54,6 +55,7 @@ app.use('/api/auth', authRoutes);
 
 // Middleware para el manejo de errores
 app.use(errorHandler);
+app.use(errorMiddleware);
 
 const PORT = process.env.PORT || 5000;
 

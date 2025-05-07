@@ -1,15 +1,29 @@
 const logger = require('../utils/logger');
 
-const errorHandler = (err, req, res, next) => {
-  logger.error(err.stack); // Registrar el error
-
-  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-  res.status(statusCode);
-  res.json({
+/**
+ * Middleware para manejo centralizado de errores
+ */
+function errorMiddleware(err, req, res, next) {
+  // Registrar error
+  logger.error(`Error no capturado: ${err.stack}`);
+  
+  // Determinar código de estado HTTP
+  const statusCode = err.statusCode || 500;
+  
+  // Construir respuesta
+  const errorResponse = {
     status: 'error',
-    message: err.message,
-    stack: process.env.NODE_ENV === 'production' ? null : err.stack, // No mostrar el stack en producción
-  });
-};
+    message: process.env.NODE_ENV === 'production' 
+      ? 'Error interno del servidor' 
+      : err.message
+  };
+  
+  // Incluir pila en desarrollo
+  if (process.env.NODE_ENV !== 'production') {
+    errorResponse.stack = err.stack;
+  }
+  
+  res.status(statusCode).json(errorResponse);
+}
 
-module.exports = errorHandler;
+module.exports = errorMiddleware;
