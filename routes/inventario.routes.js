@@ -17,6 +17,10 @@ router.delete('/:id', inventarioController.deleteInventario.bind(inventarioContr
 router.post('/:id/entradas', inventarioController.validaciones.entrada, inventarioController.addEntrada.bind(inventarioController));
 router.post('/:id/salidas', inventarioController.validaciones.salida, inventarioController.addSalida.bind(inventarioController));
 
+// Rutas para entradas y salidas con paginación
+router.get('/:id/entradas', inventarioController.getEntradasInventario.bind(inventarioController));
+router.get('/:id/salidas', inventarioController.getSalidasInventario.bind(inventarioController));
+
 // Ruta para auditoría
 router.get('/:id/auditoria', inventarioController.getAuditoriaInventario.bind(inventarioController));
 

@@ -542,6 +542,146 @@ class InventarioController {
   }
 
   /**
+   * Obtiene las entradas de un elemento de inventario con paginación y ordenación
+   */
+  async getEntradasInventario(req, res) {
+    try {
+      console.log('ID de inventario:', req.params.id);
+      console.log('Parámetros de consulta:', req.query);
+      
+      const inventarioId = req.params.id;
+      const page = parseInt(req.query.page) || 0;
+      const pageSize = parseInt(req.query.pageSize) || 10;
+      const sortField = req.query.sortField || 'fecha';
+      const sortOrder = req.query.sortOrder === 'desc' ? -1 : 1;
+      const search = req.query.search || "";
+      
+      // Verificar que el inventario existe
+      const inventario = await Inventario.findById(inventarioId);
+      if (!inventario) {
+        return res.status(404).json({
+          status: "error",
+          message: "Inventario no encontrado",
+        });
+      }
+      
+      // Construir pipeline de agregación para filtrar y paginar las entradas
+      const aggregatePipeline = [
+        { $match: { _id: new mongoose.Types.ObjectId(inventarioId) } },
+        { $unwind: "$entradas" },
+        {
+          $match: search ? {
+            $or: [
+              { "entradas.proveedor": { $regex: search, $options: "i" } },
+              { "entradas.observaciones": { $regex: search, $options: "i" } },
+              { "entradas.registradoPor.usuario.username": { $regex: search, $options: "i" } }
+            ]
+          } : {}
+        },
+        {
+          $sort: { [`entradas.${sortField}`]: sortOrder }
+        },
+        {
+          $facet: {
+            metadata: [{ $count: "total" }, { $addFields: { page, pageSize } }],
+            data: [{ $skip: page * pageSize }, { $limit: pageSize }]
+          }
+        }
+      ];
+      
+      const result = await Inventario.aggregate(aggregatePipeline);
+      
+      const entradas = result[0].data.map(item => item.entradas);
+      const metadata = result[0].metadata[0] || { total: 0, page, pageSize };
+      
+      // Verificar que estamos devolviendo datos correctamente
+      console.log('Datos a devolver:', {
+        status: "success",
+        data: entradas,
+        page,
+        pageSize,
+        total: metadata.total,
+        totalPages: Math.ceil(metadata.total / pageSize)
+      });
+      
+      res.status(200).json({
+        status: "success",
+        data: entradas,
+        page,
+        pageSize,
+        total: metadata.total,
+        totalPages: Math.ceil(metadata.total / pageSize)
+      });
+    } catch (error) {
+      handleServerError(res, error, "Error al obtener entradas del inventario:");
+    }
+  }
+
+  /**
+   * Obtiene las salidas de un elemento de inventario con paginación y ordenación
+   */
+  async getSalidasInventario(req, res) {
+    try {
+      const inventarioId = req.params.id;
+      const page = parseInt(req.query.page) || 0;
+      const pageSize = parseInt(req.query.pageSize) || 10;
+      const sortField = req.query.sortField || 'fecha';
+      const sortOrder = req.query.sortOrder === 'desc' ? -1 : 1;
+      const search = req.query.search || "";
+      
+      // Verificar que el inventario existe
+      const inventario = await Inventario.findById(inventarioId);
+      if (!inventario) {
+        return res.status(404).json({
+          status: "error",
+          message: "Inventario no encontrado",
+        });
+      }
+      
+      // Construir pipeline de agregación para filtrar y paginar las salidas
+      const aggregatePipeline = [
+        { $match: { _id: new mongoose.Types.ObjectId(inventarioId) } },
+        { $unwind: "$salidas" },
+        {
+          $match: search ? {
+            $or: [
+              { "salidas.area": { $regex: search, $options: "i" } },
+              { "salidas.solicitante": { $regex: search, $options: "i" } },
+              { "salidas.motivo": { $regex: search, $options: "i" } },
+              { "salidas.registradoPor.usuario.username": { $regex: search, $options: "i" } }
+            ]
+          } : {}
+        },
+        {
+          $sort: { [`salidas.${sortField}`]: sortOrder }
+        },
+        {
+          $facet: {
+            metadata: [{ $count: "total" }, { $addFields: { page, pageSize } }],
+            data: [{ $skip: page * pageSize }, { $limit: pageSize }]
+          }
+        }
+      ];
+      
+      const result = await Inventario.aggregate(aggregatePipeline);
+      
+      const salidas = result[0].data.map(item => item.salidas);
+      const metadata = result[0].metadata[0] || { total: 0, page, pageSize };
+      
+      res.status(200).json({
+        status: "success",
+        data: salidas,
+        page,
+        pageSize,
+        total: metadata.total,
+        totalPages: Math.ceil(metadata.total / pageSize)
+      });
+    } catch (error) {
+      handleServerError(res, error, "Error al obtener salidas del inventario:");
+    }
+  }
+
+  /**
    * Validadores para el controlador de inventario
    */
   get validaciones() {
