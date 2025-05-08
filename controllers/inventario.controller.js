@@ -322,6 +322,11 @@ class InventarioController {
    */
   async addEntrada(req, res) {
     try {
+      // Logs para depuración
+      console.log('Request body:', req.body);
+      console.log('Token:', req.header('Authorization'));
+      console.log('Usuario autenticado:', req.user);
+
       // Validar entrada de datos
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -340,16 +345,31 @@ class InventarioController {
         });
       }
 
-      const { fecha, cantidad, proveedor } = req.body;
+      const { fecha, cantidad, proveedor, observaciones } = req.body;
       
       // Crear información de auditoría
-      const infoAuditoria = await crearInfoAuditoria(req);
+      let infoAuditoria;
+      try {
+        infoAuditoria = await crearInfoAuditoria(req);
+      } catch (auditoriaError) {
+        console.error('Error al crear info de auditoría:', auditoriaError);
+        return res.status(401).json({
+          status: "error",
+          message: "Error de autenticación: " + auditoriaError.message
+        });
+      }
+
+      // SOLUCIÓN: Verificar y establecer el campo creador si no existe
+      if (!inventario.creador) {
+        inventario.creador = infoAuditoria;
+      }
 
       // Agregar entrada con información de auditoría
       inventario.entradas.push({
         fecha: fecha || new Date(),
         cantidad,
         proveedor,
+        observaciones,
         registradoPor: infoAuditoria
       });
 
@@ -369,6 +389,7 @@ class InventarioController {
         data: inventario,
       });
     } catch (error) {
+      console.error('Error completo:', error);
       handleServerError(res, error, "Error al agregar entrada:");
     }
   }

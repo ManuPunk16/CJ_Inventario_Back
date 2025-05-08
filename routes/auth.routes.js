@@ -3,7 +3,7 @@ const router = express.Router();
 const authController = require('../controllers/auth.controller');
 const { body } = require('express-validator');
 
-// Iniciar sesión
+// Ruta sin protección
 router.post(
   '/login',
   [
@@ -13,11 +13,19 @@ router.post(
   authController.login.bind(authController)
 );
 
+// Ruta sin protección para refrescar token
+router.post(
+  '/refresh-token',
+  authController.refreshToken.bind(authController)
+);
+
+// Middleware de autenticación para las rutas siguientes
+router.use(authController.verifyToken.bind(authController));
+
 // Registrar un nuevo usuario (protegido, solo admin)
 router.post(
   '/register',
   [
-    authController.verifyToken.bind(authController),
     authController.authorizeRole(['admin']),
     body('username', 'El nombre de usuario es requerido').notEmpty(),
     body('password', 'La contraseña debe tener al menos 6 caracteres').isLength({ min: 6 }),
@@ -29,20 +37,12 @@ router.post(
 // Obtener perfil del usuario actual
 router.get(
   '/profile',
-  authController.verifyToken.bind(authController),
   authController.getProfile.bind(authController)
-);
-
-// Refrescar token
-router.post(
-  '/refresh-token',
-  authController.refreshToken.bind(authController)
 );
 
 // Cerrar sesión
 router.post(
   '/logout',
-  authController.verifyToken.bind(authController),
   authController.logout.bind(authController)
 );
 
