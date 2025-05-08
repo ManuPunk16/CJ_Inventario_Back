@@ -479,11 +479,19 @@ class InventarioController {
       // Agregar entradas
       inventario.entradas.forEach(entrada => {
         if (entrada.registradoPor) {
+          let detalles = `Entrada de ${entrada.cantidad} unidades`;
+          if (entrada.proveedor) {
+            detalles += `. Proveedor: ${entrada.proveedor}`;
+          }
+          if (entrada.ubicacionAnterior && entrada.ubicacionNueva) {
+            detalles += `. Cambio de ubicación: ${entrada.ubicacionAnterior.edificio}-A${entrada.ubicacionAnterior.anaquel}-N${entrada.ubicacionAnterior.nivel} → ${entrada.ubicacionNueva.edificio}-A${entrada.ubicacionNueva.anaquel}-N${entrada.ubicacionNueva.nivel}`;
+          }
+          
           auditorias.push({
             tipo: 'ENTRADA',
             fecha: entrada.fecha,
             usuario: entrada.registradoPor.usuario.username,
-            detalles: `Entrada de ${entrada.cantidad} unidades. ${entrada.proveedor ? `Proveedor: ${entrada.proveedor}` : ''}`
+            detalles
           });
         }
       });
@@ -495,13 +503,13 @@ class InventarioController {
             tipo: 'SALIDA',
             fecha: salida.fecha,
             usuario: salida.registradoPor.usuario.username,
-            detalles: `Salida de ${salida.cantidad} unidades. Solicitante: ${salida.solicitante}, Área: ${salida.area}`
+            detalles: `Salida de ${salida.cantidad} unidades. Área: ${salida.area}. Solicitante: ${salida.solicitante}. Motivo: ${salida.motivo || 'No especificado'}`
           });
         }
       });
 
       // Ordenar por fecha (más reciente primero)
-      auditorias.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      auditorias.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 
       res.status(200).json({
         status: "success",

@@ -13,4 +13,7 @@ router.delete('/:id', inventarioController.deleteInventario.bind(inventarioContr
 router.post('/:id/entradas', inventarioController.validaciones.entrada, inventarioController.addEntrada.bind(inventarioController));
 router.post('/:id/salidas', inventarioController.validaciones.salida, inventarioController.addSalida.bind(inventarioController));
 
+// Agregar esta ruta
+router.get('/:id/auditoria', inventarioController.getAuditoriaInventario.bind(inventarioController));
+
 module.exports = router;
