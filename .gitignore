@@ -3,3 +3,4 @@
 
 #others
 .env
+./logs/*.log
