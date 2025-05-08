@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const ubicacionSchema = new mongoose.Schema({
+  edificio: {
+    type: String,
+    enum: ['ADM', 'TI'],
+    required: true,
+    uppercase: true,
+    default: 'ADM'
+  },
   anaquel: {
     type: String,
     required: true,
@@ -56,7 +63,6 @@ const inventarioSchema = new mongoose.Schema({
   },
   codigoUbicacion: {
     type: String,
-    // unique: true,
     required: true
   },
   entradas: [{
@@ -103,13 +109,32 @@ const inventarioSchema = new mongoose.Schema({
   }
 });
 
-// Middleware para generar automáticamente el código de ubicación
-inventarioSchema.pre('save', function(next) {
-  if (!this.codigoUbicacion) {
-    const ubicacion = this.ubicacion;
-    // Formato: ANA-NIV
-    // Ejemplo: A01-N1
-    this.codigoUbicacion = `${ubicacion.anaquel}-N${ubicacion.nivel}`;
+// Pre-save middleware para generar automáticamente el código de ubicación
+inventarioSchema.pre(['save', 'insertMany'], function(next) {
+  // Si es una operación insertMany, aplicar a cada documento
+  if (Array.isArray(this)) {
+    this.forEach(doc => {
+      if (!doc.codigoUbicacion) {
+        const ubicacion = doc.ubicacion;
+        const edificio = ubicacion.edificio || 'ADM';
+        const anaquel = ubicacion.anaquel;
+        const nivel = ubicacion.nivel;
+        const shortTimestamp = Date.now().toString().slice(-4);
+        
+        doc.codigoUbicacion = `${edificio}-A${anaquel}-N${nivel}-${shortTimestamp}`;
+      }
+    });
+  } else {
+    // Aplicar al documento individual si no tiene código
+    if (!this.codigoUbicacion) {
+      const ubicacion = this.ubicacion;
+      const edificio = ubicacion.edificio || 'ADM';
+      const anaquel = ubicacion.anaquel;
+      const nivel = ubicacion.nivel;
+      const shortTimestamp = Date.now().toString().slice(-4);
+      
+      this.codigoUbicacion = `${edificio}-A${anaquel}-N${nivel}-${shortTimestamp}`;
+    }
   }
   next();
 });
@@ -118,6 +143,7 @@ inventarioSchema.pre('save', function(next) {
 inventarioSchema.index({ nombre: 1 });
 inventarioSchema.index({ tipoMaterial: 1, nombre: 1 });
 inventarioSchema.index({ 'ubicacion.anaquel': 1 });
+inventarioSchema.index({ 'ubicacion.edificio': 1 });
 inventarioSchema.index({ codigoUbicacion: 1 }, { unique: true });
 
 module.exports = mongoose.model('Inventario', inventarioSchema, 'inventario');

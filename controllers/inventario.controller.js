@@ -4,6 +4,16 @@ const logger = require("../utils/logger");
 const { handleServerError } = require("../utils/errorHandler");
 const { AREAS, TIPO_MATERIAL, UNIDAD_MEDIDA } = require("../utils/enums");
 
+// Función de utilidad para generar códigos de ubicación
+function generarCodigoUbicacion(ubicacion) {
+  const edificio = ubicacion.edificio || 'ADM';
+  const anaquel = ubicacion.anaquel;
+  const nivel = ubicacion.nivel;
+  const shortTimestamp = Date.now().toString().slice(-4);
+  
+  return `${edificio}-A${anaquel}-N${nivel}-${shortTimestamp}`;
+}
+
 class InventarioController {
   /**
    * Obtiene todos los elementos del inventario con paginación y búsqueda
@@ -79,17 +89,22 @@ class InventarioController {
       if (!errors.isEmpty()) {
         return res.status(400).json({
           status: "error",
-          errors: errors.array(),
+          message: "Error de validación",
+          errors: errors.array().map(err => err.msg),
         });
       }
 
-      const nuevoInventario = new Inventario(req.body);
-      const inventarioCreado = await nuevoInventario.save();
+      // Garantizar que el objeto tenga un código de ubicación válido
+      if (!req.body.codigoUbicacion || !req.body.codigoUbicacion.trim()) {
+        req.body.codigoUbicacion = generarCodigoUbicacion(req.body.ubicacion);
+      }
 
-      logger.info(`Inventario creado: ${inventarioCreado._id}`);
+      const inventario = await Inventario.create(req.body);
+      
+      logger.info(`Nuevo inventario creado: ${inventario._id}`);
       res.status(201).json({
         status: "success",
-        data: inventarioCreado,
+        data: inventario,
       });
     } catch (error) {
       handleServerError(res, error, "Error al crear inventario:");
@@ -110,11 +125,64 @@ class InventarioController {
         });
       }
 
-      // Actualizar documento con fecha de actualización
+      // Obtener el artículo actual para verificar si cambió la ubicación
+      const inventarioActual = await Inventario.findById(req.params.id);
+      
+      if (!inventarioActual) {
+        return res.status(404).json({
+          status: "error",
+          message: "Inventario no encontrado",
+        });
+      }
+      
       const updatedData = {
         ...req.body,
         fechaActualizacion: Date.now(),
       };
+      
+      // Verificar si la ubicación ha cambiado
+      let ubicacionCambiada = false;
+      
+      if (updatedData.ubicacion) {
+        const ubicacionActual = inventarioActual.ubicacion;
+        const nuevaUbicacion = updatedData.ubicacion;
+        
+        if (
+          (nuevaUbicacion.edificio && nuevaUbicacion.edificio !== ubicacionActual.edificio) ||
+          (nuevaUbicacion.anaquel && nuevaUbicacion.anaquel !== ubicacionActual.anaquel) ||
+          (nuevaUbicacion.nivel && nuevaUbicacion.nivel !== ubicacionActual.nivel)
+        ) {
+          ubicacionCambiada = true;
+          
+          // Generar nuevo código de ubicación
+          const edificio = nuevaUbicacion.edificio || ubicacionActual.edificio;
+          const anaquel = nuevaUbicacion.anaquel || ubicacionActual.anaquel;
+          const nivel = nuevaUbicacion.nivel || ubicacionActual.nivel;
+          const shortTimestamp = Date.now().toString().slice(-4);
+          
+          updatedData.codigoUbicacion = `${edificio}-A${anaquel}-N${nivel}-${shortTimestamp}`;
+          
+          // Registrar el cambio de ubicación en las entradas
+          if (!updatedData.entradas) {
+            updatedData.entradas = inventarioActual.entradas || [];
+          }
+          
+          updatedData.entradas.push({
+            fecha: new Date(),
+            cantidad: inventarioActual.cantidad,
+            ubicacionAnterior: {
+              edificio: ubicacionActual.edificio,
+              anaquel: ubicacionActual.anaquel,
+              nivel: ubicacionActual.nivel
+            },
+            ubicacionNueva: {
+              edificio: edificio,
+              anaquel: anaquel,
+              nivel: nivel
+            }
+          });
+        }
+      }
 
       const inventario = await Inventario.findByIdAndUpdate(
         req.params.id,
@@ -124,13 +192,6 @@ class InventarioController {
           runValidators: true,
         }
       );
-
-      if (!inventario) {
-        return res.status(404).json({
-          status: "error",
-          message: "Inventario no encontrado",
-        });
-      }
 
       logger.info(`Inventario actualizado: ${inventario._id}`);
       res.status(200).json({
@@ -316,6 +377,16 @@ class InventarioController {
           .optional()
           .isInt({ min: 0 })
           .withMessage("El stock mínimo debe ser un número entero no negativo"),
+        body("ubicacion.edificio")
+          .isIn(['ADM', 'TI'])
+          .withMessage("La ubicación debe ser ADM (Administración) o TI (Tecnologías de la Información)"),
+        body("ubicacion.anaquel")
+          .notEmpty()
+          .withMessage("El anaquel es requerido")
+          .trim(),
+        body("ubicacion.nivel")
+          .isInt({ min: 1 })
+          .withMessage("El nivel debe ser un número entero positivo"),
       ],
       actualizar: [
         body("tipoMaterial")
@@ -356,6 +427,19 @@ class InventarioController {
           .optional()
           .isInt({ min: 0 })
           .withMessage("El stock mínimo debe ser un número entero no negativo"),
+        body("ubicacion.edificio")
+          .optional()
+          .isIn(['ADM', 'TI'])
+          .withMessage("La ubicación debe ser ADM (Administración) o TI (Tecnologías de la Información)"),
+        body("ubicacion.anaquel")
+          .optional()
+          .notEmpty()
+          .withMessage("El anaquel es requerido")
+          .trim(),
+        body("ubicacion.nivel")
+          .optional()
+          .isInt({ min: 1 })
+          .withMessage("El nivel debe ser un número entero positivo"),
       ],
       entrada: [
         body("fecha")
