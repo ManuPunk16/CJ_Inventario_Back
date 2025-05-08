@@ -234,7 +234,24 @@ class AuthController {
       
       // Verificar token
       const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-      req.user = decoded.user;
+      
+      // Asegurarse de tener toda la info del usuario (no solo el ID)
+      const usuario = await User.findById(decoded.user.id).select('-password');
+      
+      if (!usuario) {
+        return res.status(401).json({ 
+          status: 'error', 
+          message: 'Usuario no encontrado' 
+        });
+      }
+      
+      // Adjuntar usuario completo a req.user
+      req.user = {
+        id: usuario._id,
+        username: usuario.username,
+        role: usuario.role
+      };
+      
       next();
     } catch (error) {
       logger.error(`Error al verificar token: ${error.message}`);

@@ -1,9 +1,11 @@
 const { body, validationResult } = require("express-validator");
 const Inventario = require("../models/inventario.model");
+const User = require("../models/user.model");
 const logger = require("../utils/logger");
 const { handleServerError } = require("../utils/errorHandler");
 const { AREAS, TIPO_MATERIAL, UNIDAD_MEDIDA } = require("../utils/enums");
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 
 /**
  * Genera un código de ubicación único basado en la ubicación y un identificador aleatorio
@@ -48,6 +50,36 @@ async function generarCodigoUbicacionUnico(ubicacion) {
   logger.info(`Código de ubicación generado: ${codigo} (intentos: ${intentos})`);
   
   return codigo;
+}
+
+/**
+ * Crea un objeto de auditoría con la información del usuario
+ * @param {Object} req - Objeto de solicitud Express
+ * @returns {Object} - Objeto con información de auditoría
+ */
+async function crearInfoAuditoria(req) {
+  try {
+    if (!req.user || !req.user.id) {
+      throw new Error('Usuario no autenticado');
+    }
+
+    // Obtener el usuario completo para tener acceso al username
+    const usuario = await User.findById(req.user.id);
+    if (!usuario) {
+      throw new Error(`Usuario con ID ${req.user.id} no encontrado`);
+    }
+
+    return {
+      usuario: {
+        id: usuario._id,
+        username: usuario.username
+      },
+      fecha: new Date()
+    };
+  } catch (error) {
+    logger.error(`Error al crear información de auditoría: ${error.message}`);
+    throw error;
+  }
 }
 
 class InventarioController {
@@ -145,9 +177,14 @@ class InventarioController {
         }
       }
 
+      // Agregar información de auditoría
+      const infoAuditoria = await crearInfoAuditoria(req);
+      req.body.creador = infoAuditoria;
+      req.body.ultimaModificacion = infoAuditoria;
+
       const inventario = await Inventario.create(req.body);
       
-      logger.info(`Nuevo inventario creado: ${inventario._id}, código: ${inventario.codigoUbicacion}`);
+      logger.info(`Nuevo inventario creado: ${inventario._id}, código: ${inventario.codigoUbicacion}, por usuario: ${infoAuditoria.usuario.username}`);
       res.status(201).json({
         status: "success",
         data: inventario,
@@ -181,9 +218,13 @@ class InventarioController {
         });
       }
       
+      // Crear información de auditoría
+      const infoAuditoria = await crearInfoAuditoria(req);
+      
       const updatedData = {
         ...req.body,
         fechaActualizacion: Date.now(),
+        ultimaModificacion: infoAuditoria
       };
       
       // Verificar si la ubicación ha cambiado
@@ -224,7 +265,8 @@ class InventarioController {
               edificio: nuevaUbicacion.edificio || ubicacionActual.edificio,
               anaquel: nuevaUbicacion.anaquel || ubicacionActual.anaquel,
               nivel: nuevaUbicacion.nivel || ubicacionActual.nivel
-            }
+            },
+            registradoPor: infoAuditoria
           });
         }
       }
@@ -238,7 +280,7 @@ class InventarioController {
         }
       );
 
-      logger.info(`Inventario actualizado: ${inventario._id}, código: ${inventario.codigoUbicacion}`);
+      logger.info(`Inventario actualizado: ${inventario._id}, código: ${inventario.codigoUbicacion}, por usuario: ${infoAuditoria.usuario.username}`);
       res.status(200).json({
         status: "success",
         data: inventario,
@@ -253,6 +295,9 @@ class InventarioController {
    */
   async deleteInventario(req, res) {
     try {
+      // Obtener info de auditoría para el log
+      const infoAuditoria = await crearInfoAuditoria(req);
+      
       const inventario = await Inventario.findByIdAndDelete(req.params.id);
 
       if (!inventario) {
@@ -262,7 +307,7 @@ class InventarioController {
         });
       }
 
-      logger.info(`Inventario eliminado: ${req.params.id}`);
+      logger.info(`Inventario eliminado: ${req.params.id}, por usuario: ${infoAuditoria.usuario.username}`);
       res.status(200).json({
         status: "success",
         message: "Inventario eliminado correctamente",
@@ -296,23 +341,29 @@ class InventarioController {
       }
 
       const { fecha, cantidad, proveedor } = req.body;
+      
+      // Crear información de auditoría
+      const infoAuditoria = await crearInfoAuditoria(req);
 
-      // Agregar entrada
+      // Agregar entrada con información de auditoría
       inventario.entradas.push({
         fecha: fecha || new Date(),
         cantidad,
         proveedor,
+        registradoPor: infoAuditoria
       });
 
-      // Actualizar stock y fecha
+      // Actualizar stock, fecha y modificador
       inventario.cantidad += cantidad;
       inventario.fechaActualizacion = Date.now();
+      inventario.ultimaModificacion = infoAuditoria;
 
       await inventario.save();
 
       logger.info(
-        `Entrada agregada al inventario: ${inventario._id}, cantidad: ${cantidad}`
+        `Entrada agregada al inventario: ${inventario._id}, cantidad: ${cantidad}, por usuario: ${infoAuditoria.usuario.username}`
       );
+      
       res.status(200).json({
         status: "success",
         data: inventario,
@@ -345,8 +396,7 @@ class InventarioController {
         });
       }
 
-      const { hora, cantidad, motivo, area, solicitante, quienEntrega } =
-        req.body;
+      const { hora, cantidad, motivo, area, solicitante, quienEntrega } = req.body;
 
       // Verificar si hay suficiente stock
       if (inventario.cantidad < cantidad) {
@@ -355,8 +405,11 @@ class InventarioController {
           message: `Stock insuficiente. Disponible: ${inventario.cantidad}`,
         });
       }
+      
+      // Crear información de auditoría
+      const infoAuditoria = await crearInfoAuditoria(req);
 
-      // Agregar salida
+      // Agregar salida con información de auditoría
       inventario.salidas.push({
         fecha: new Date(),
         hora,
@@ -365,23 +418,97 @@ class InventarioController {
         area,
         solicitante,
         quienEntrega,
+        registradoPor: infoAuditoria
       });
 
-      // Actualizar stock y fecha
+      // Actualizar stock, fecha y modificador
       inventario.cantidad -= cantidad;
       inventario.fechaActualizacion = Date.now();
+      inventario.ultimaModificacion = infoAuditoria;
 
       await inventario.save();
 
       logger.info(
-        `Salida registrada para inventario: ${inventario._id}, cantidad: ${cantidad}`
+        `Salida registrada para inventario: ${inventario._id}, cantidad: ${cantidad}, por usuario: ${infoAuditoria.usuario.username}`
       );
+      
       res.status(200).json({
         status: "success",
         data: inventario,
       });
     } catch (error) {
       handleServerError(res, error, "Error al agregar salida:");
+    }
+  }
+
+  /**
+   * Obtiene el historial de auditoría de un elemento de inventario
+   */
+  async getAuditoriaInventario(req, res) {
+    try {
+      const inventario = await Inventario.findById(req.params.id)
+        .select('nombre codigoUbicacion creador ultimaModificacion entradas.registradoPor salidas.registradoPor');
+
+      if (!inventario) {
+        return res.status(404).json({
+          status: "error",
+          message: "Inventario no encontrado",
+        });
+      }
+
+      // Construir historial de auditoría
+      const auditorias = [
+        {
+          tipo: 'CREACIÓN',
+          fecha: inventario.creador.fecha,
+          usuario: inventario.creador.usuario.username,
+          detalles: `Creación inicial del producto: ${inventario.nombre} (${inventario.codigoUbicacion})`
+        }
+      ];
+
+      // Agregar modificaciones
+      if (inventario.ultimaModificacion) {
+        auditorias.push({
+          tipo: 'MODIFICACIÓN',
+          fecha: inventario.ultimaModificacion.fecha,
+          usuario: inventario.ultimaModificacion.usuario.username,
+          detalles: `Última modificación al producto: ${inventario.nombre} (${inventario.codigoUbicacion})`
+        });
+      }
+
+      // Agregar entradas
+      inventario.entradas.forEach(entrada => {
+        if (entrada.registradoPor) {
+          auditorias.push({
+            tipo: 'ENTRADA',
+            fecha: entrada.fecha,
+            usuario: entrada.registradoPor.usuario.username,
+            detalles: `Entrada de ${entrada.cantidad} unidades. ${entrada.proveedor ? `Proveedor: ${entrada.proveedor}` : ''}`
+          });
+        }
+      });
+
+      // Agregar salidas
+      inventario.salidas.forEach(salida => {
+        if (salida.registradoPor) {
+          auditorias.push({
+            tipo: 'SALIDA',
+            fecha: salida.fecha,
+            usuario: salida.registradoPor.usuario.username,
+            detalles: `Salida de ${salida.cantidad} unidades. Solicitante: ${salida.solicitante}, Área: ${salida.area}`
+          });
+        }
+      });
+
+      // Ordenar por fecha (más reciente primero)
+      auditorias.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+      res.status(200).json({
+        status: "success",
+        data: auditorias,
+      });
+    } catch (error) {
+      handleServerError(res, error, "Error al obtener auditoría de inventario:");
     }
   }
 

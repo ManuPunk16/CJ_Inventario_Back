@@ -1,5 +1,14 @@
 const mongoose = require('mongoose');
 
+// Esquema para acciones de auditoría
+const auditoriaSchema = new mongoose.Schema({
+  usuario: {
+    id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    username: { type: String, required: true }
+  },
+  fecha: { type: Date, default: Date.now }
+});
+
 const ubicacionSchema = new mongoose.Schema({
   edificio: {
     type: String,
@@ -65,13 +74,28 @@ const inventarioSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  // Agregar creador y último modificador
+  creador: {
+    type: auditoriaSchema,
+    required: true
+  },
+  ultimaModificacion: {
+    type: auditoriaSchema
+  },
+  // Modificar entrada para incluir información de auditoría
   entradas: [{
     fecha: { type: Date, default: Date.now },
     cantidad: { type: Number, required: true },
     proveedor: { type: String },
     ubicacionAnterior: ubicacionSchema,
-    ubicacionNueva: ubicacionSchema
+    ubicacionNueva: ubicacionSchema,
+    // Quién registró esta entrada
+    registradoPor: {
+      type: auditoriaSchema,
+      required: true
+    }
   }],
+  // Modificar salida para incluir información de auditoría
   salidas: [{
     fecha: { type: Date, default: Date.now },
     hora: { type: String, required: true },
@@ -97,7 +121,12 @@ const inventarioSchema = new mongoose.Schema({
       required: true
     },
     solicitante: { type: String, required: true },
-    quienEntrega: { type: String, required: true }
+    quienEntrega: { type: String, required: true },
+    // Quién registró esta salida
+    registradoPor: {
+      type: auditoriaSchema,
+      required: true
+    }
   }],
   fechaCreacion: {
     type: Date,
@@ -145,5 +174,10 @@ inventarioSchema.index({ tipoMaterial: 1, nombre: 1 });
 inventarioSchema.index({ 'ubicacion.anaquel': 1 });
 inventarioSchema.index({ 'ubicacion.edificio': 1 });
 inventarioSchema.index({ codigoUbicacion: 1 }, { unique: true });
+// Nuevos índices para auditoría
+inventarioSchema.index({ 'creador.usuario.id': 1 });
+inventarioSchema.index({ 'creador.usuario.username': 1 });
+inventarioSchema.index({ 'entradas.registradoPor.usuario.id': 1 });
+inventarioSchema.index({ 'salidas.registradoPor.usuario.id': 1 });
 
 module.exports = mongoose.model('Inventario', inventarioSchema, 'inventario');
