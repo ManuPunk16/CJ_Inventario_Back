@@ -3,15 +3,51 @@ const Inventario = require("../models/inventario.model");
 const logger = require("../utils/logger");
 const { handleServerError } = require("../utils/errorHandler");
 const { AREAS, TIPO_MATERIAL, UNIDAD_MEDIDA } = require("../utils/enums");
+const crypto = require('crypto');
 
-// Función de utilidad para generar códigos de ubicación
-function generarCodigoUbicacion(ubicacion) {
+/**
+ * Genera un código de ubicación único basado en la ubicación y un identificador aleatorio
+ * @param {Object} ubicacion - Objeto con la información de la ubicación
+ * @returns {Promise<string>} - Código de ubicación único
+ */
+async function generarCodigoUbicacionUnico(ubicacion) {
+  // Obtener los datos de ubicación
   const edificio = ubicacion.edificio || 'ADM';
-  const anaquel = ubicacion.anaquel;
-  const nivel = ubicacion.nivel;
-  const shortTimestamp = Date.now().toString().slice(-4);
+  const anaquel = ubicacion.anaquel?.toUpperCase() || '';
+  const nivel = ubicacion.nivel || '';
   
-  return `${edificio}-A${anaquel}-N${nivel}-${shortTimestamp}`;
+  // Generar componentes para hacer el código único
+  const timestamp = Date.now().toString();
+  const randomId = crypto.randomBytes(2).toString('hex').toUpperCase(); // 4 caracteres alfanuméricos
+  
+  // Crear el código base
+  const codigoBase = `${edificio}-A${anaquel}-N${nivel}-${timestamp.slice(-6)}-${randomId}`;
+  
+  // Verificar si el código ya existe en la base de datos
+  let codigoExiste = true;
+  let codigo = codigoBase;
+  let intentos = 0;
+  const maxIntentos = 5;
+  
+  // Bucle para garantizar unicidad
+  while (codigoExiste && intentos < maxIntentos) {
+    // Verificar si el código existe en la base de datos
+    const existente = await Inventario.findOne({ codigoUbicacion: codigo });
+    
+    if (!existente) {
+      codigoExiste = false;
+    } else {
+      // Si existe, generar un nuevo identificador aleatorio
+      const nuevoRandomId = crypto.randomBytes(2).toString('hex').toUpperCase();
+      codigo = `${edificio}-A${anaquel}-N${nivel}-${timestamp.slice(-6)}-${nuevoRandomId}`;
+      intentos++;
+    }
+  }
+  
+  // Log para depuración
+  logger.info(`Código de ubicación generado: ${codigo} (intentos: ${intentos})`);
+  
+  return codigo;
 }
 
 class InventarioController {
@@ -94,14 +130,24 @@ class InventarioController {
         });
       }
 
-      // Garantizar que el objeto tenga un código de ubicación válido
+      // Garantizar que el objeto tenga un código de ubicación único
       if (!req.body.codigoUbicacion || !req.body.codigoUbicacion.trim()) {
-        req.body.codigoUbicacion = generarCodigoUbicacion(req.body.ubicacion);
+        req.body.codigoUbicacion = await generarCodigoUbicacionUnico(req.body.ubicacion);
+      } else {
+        // Verificar si el código proporcionado ya existe
+        const codigoExistente = await Inventario.findOne({ 
+          codigoUbicacion: req.body.codigoUbicacion,
+        });
+        
+        if (codigoExistente) {
+          // Si existe, generar uno nuevo
+          req.body.codigoUbicacion = await generarCodigoUbicacionUnico(req.body.ubicacion);
+        }
       }
 
       const inventario = await Inventario.create(req.body);
       
-      logger.info(`Nuevo inventario creado: ${inventario._id}`);
+      logger.info(`Nuevo inventario creado: ${inventario._id}, código: ${inventario.codigoUbicacion}`);
       res.status(201).json({
         status: "success",
         data: inventario,
@@ -154,13 +200,12 @@ class InventarioController {
         ) {
           ubicacionCambiada = true;
           
-          // Generar nuevo código de ubicación
-          const edificio = nuevaUbicacion.edificio || ubicacionActual.edificio;
-          const anaquel = nuevaUbicacion.anaquel || ubicacionActual.anaquel;
-          const nivel = nuevaUbicacion.nivel || ubicacionActual.nivel;
-          const shortTimestamp = Date.now().toString().slice(-4);
-          
-          updatedData.codigoUbicacion = `${edificio}-A${anaquel}-N${nivel}-${shortTimestamp}`;
+          // Generar nuevo código de ubicación único
+          updatedData.codigoUbicacion = await generarCodigoUbicacionUnico({
+            edificio: nuevaUbicacion.edificio || ubicacionActual.edificio,
+            anaquel: nuevaUbicacion.anaquel || ubicacionActual.anaquel,
+            nivel: nuevaUbicacion.nivel || ubicacionActual.nivel
+          });
           
           // Registrar el cambio de ubicación en las entradas
           if (!updatedData.entradas) {
@@ -176,9 +221,9 @@ class InventarioController {
               nivel: ubicacionActual.nivel
             },
             ubicacionNueva: {
-              edificio: edificio,
-              anaquel: anaquel,
-              nivel: nivel
+              edificio: nuevaUbicacion.edificio || ubicacionActual.edificio,
+              anaquel: nuevaUbicacion.anaquel || ubicacionActual.anaquel,
+              nivel: nuevaUbicacion.nivel || ubicacionActual.nivel
             }
           });
         }
@@ -193,7 +238,7 @@ class InventarioController {
         }
       );
 
-      logger.info(`Inventario actualizado: ${inventario._id}`);
+      logger.info(`Inventario actualizado: ${inventario._id}, código: ${inventario.codigoUbicacion}`);
       res.status(200).json({
         status: "success",
         data: inventario,
