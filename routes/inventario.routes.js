@@ -9,6 +9,10 @@ router.use(authController.verifyToken.bind(authController));
 // Rutas para gestión de inventario
 router.get('/', inventarioController.getAllInventario.bind(inventarioController));
 router.post('/', inventarioController.validaciones.crear, inventarioController.createInventario.bind(inventarioController));
+
+// Ruta para inventario por demanda
+router.get('/demanda', inventarioController.getInventarioPorDemanda.bind(inventarioController));
+
 router.get('/:id', inventarioController.getInventarioById.bind(inventarioController));
 router.put('/:id', inventarioController.validaciones.actualizar, inventarioController.updateInventario.bind(inventarioController));
 router.delete('/:id', inventarioController.deleteInventario.bind(inventarioController));

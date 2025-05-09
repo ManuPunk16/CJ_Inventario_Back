@@ -19,7 +19,7 @@ const app = express();
 const corsOptions = {
   origin: "*", // O una lista de orígenes específicos para mayor seguridad
   methods: "GET, POST, OPTIONS, PUT, DELETE, PATCH",
-  allowedHeaders: "Authorization, X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, x-access-token",
+  allowedHeaders: "Authorization, X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, x-access-token, Access-Control-Allow-Origin",
   credentials: true 
 };
 
@@ -31,14 +31,14 @@ app.use(express.json());
 // app.use(xss());
 app.use(helmet());
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // Límite de 100 solicitudes por IP en 15 minutos
-  message: 'Demasiadas solicitudes desde esta IP, por favor intente de nuevo después de 15 minutos'
-});
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutos
+//   max: 100, // Límite de 100 solicitudes por IP en 15 minutos
+//   message: 'Demasiadas solicitudes desde esta IP, por favor intente de nuevo después de 15 minutos'
+// });
 
 // Aplicar el middleware a todas las rutas
-app.use(limiter);
+// app.use(limiter);
 
 app.use(cors(corsOptions));
 

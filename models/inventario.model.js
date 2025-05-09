@@ -135,6 +135,14 @@ const inventarioSchema = new mongoose.Schema({
   fechaActualizacion: {
     type: Date,
     default: Date.now
+  },
+  // Nuevos campos para métricas
+  metricasDemanda: {
+    totalSalidas: { type: Number, default: 0 }, // Número total de operaciones de salida
+    cantidadTotalRetirada: { type: Number, default: 0 }, // Cantidad total retirada
+    ultimaSalida: { type: Date }, // Fecha de la última salida
+    frecuenciaMensual: { type: Number, default: 0 }, // Promedio mensual de salidas
+    rotacionInventario: { type: Number, default: 0 } // Índice de rotación
   }
 });
 
@@ -179,5 +187,16 @@ inventarioSchema.index({ 'creador.usuario.id': 1 });
 inventarioSchema.index({ 'creador.usuario.username': 1 });
 inventarioSchema.index({ 'entradas.registradoPor.usuario.id': 1 });
 inventarioSchema.index({ 'salidas.registradoPor.usuario.id': 1 });
+
+// Optimizar búsquedas por nombre, tipoMaterial y codigoUbicacion
+inventarioSchema.index({ tipoMaterial: 1 });
+
+// Optimizar ordenamiento por fechas
+inventarioSchema.index({ fechaActualizacion: -1 });
+inventarioSchema.index({ fechaCreacion: -1 });
+
+// Optimizar búsquedas por métricas de demanda
+inventarioSchema.index({ 'metricasDemanda.totalSalidas': -1 });
+inventarioSchema.index({ 'metricasDemanda.rotacionInventario': -1 });
 
 module.exports = mongoose.model('Inventario', inventarioSchema, 'inventario');

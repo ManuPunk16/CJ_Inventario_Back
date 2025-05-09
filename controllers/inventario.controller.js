@@ -110,6 +110,7 @@ class InventarioController {
       const inventario = await Inventario.find(query)
         .skip(skip)
         .limit(pageSize)
+        .lean()
         .sort({ fechaActualizacion: -1 });
 
       res.status(200).json({
@@ -447,6 +448,48 @@ class InventarioController {
       inventario.fechaActualizacion = Date.now();
       inventario.ultimaModificacion = infoAuditoria;
 
+      // Actualizar métricas de demanda
+      const fechaActual = new Date();
+      const primerDiaMes = new Date(fechaActual.getFullYear(), fechaActual.getMonth(), 1);
+      
+      // Calcular nuevas métricas
+      const totalSalidas = inventario.salidas.length;
+      const cantidadTotalRetirada = inventario.metricasDemanda?.cantidadTotalRetirada 
+        ? inventario.metricasDemanda.cantidadTotalRetirada + cantidad 
+        : cantidad;
+      
+      // Calcular salidas en el mes actual para frecuencia mensual
+      const salidasMesActual = inventario.salidas.filter(
+        s => new Date(s.fecha) >= primerDiaMes
+      ).length; // +1 por la nueva salida
+      
+      // Meses desde la primera salida o creación
+      const primeraFechaSalida = inventario.salidas.length > 0 
+        ? new Date(Math.min(...inventario.salidas.map(s => new Date(s.fecha).getTime())))
+        : new Date(inventario.fechaCreacion);
+      
+      const mesesOperacion = Math.max(1, 
+        (fechaActual.getFullYear() - primeraFechaSalida.getFullYear()) * 12 + 
+        fechaActual.getMonth() - primeraFechaSalida.getMonth()
+      );
+      
+      const frecuenciaMensual = totalSalidas / mesesOperacion;
+      
+      // Calcular rotación (Salidas totales / stock promedio)
+      // Para simplificar, usamos stock actual + cantidad como aproximación
+      const stockPromedio = (inventario.cantidad + cantidad) / 2;
+      const rotacionInventario = stockPromedio > 0 ? cantidadTotalRetirada / stockPromedio : 0;
+      
+      // Actualizar métricas
+      inventario.metricasDemanda = {
+        totalSalidas,
+        cantidadTotalRetirada,
+        ultimaSalida: fechaActual,
+        frecuenciaMensual,
+        rotacionInventario,
+        salidasMesActual
+      };
+
       await inventario.save();
 
       logger.info(
@@ -678,6 +721,62 @@ class InventarioController {
       });
     } catch (error) {
       handleServerError(res, error, "Error al obtener salidas del inventario:");
+    }
+  }
+
+  /**
+   * Obtiene los elementos del inventario ordenados por demanda
+   */
+  async getInventarioPorDemanda(req, res) {
+    try {
+      const page = parseInt(req.query.page) || 0;
+      const pageSize = parseInt(req.query.pageSize) || 25;
+      const skip = page * pageSize;
+      const metrica = req.query.metrica || 'rotacionInventario'; // Métrica por defecto
+      const search = req.query.search || "";
+
+      // Validar la métrica
+      const metricasValidas = ['totalSalidas', 'cantidadTotalRetirada', 'frecuenciaMensual', 'rotacionInventario', 'ultimaSalida'];
+      if (!metricasValidas.includes(metrica)) {
+        return res.status(400).json({
+          status: "error",
+          message: "Métrica de demanda inválida",
+        });
+      }
+
+      // Crear query de búsqueda
+      const query = {};
+      if (search) {
+        query.$or = [
+          { nombre: { $regex: search, $options: "i" } },
+          { tipoMaterial: { $regex: search, $options: "i" } },
+          { codigoUbicacion: { $regex: search, $options: "i" } },
+        ];
+      }
+
+      // Dirección de ordenamiento
+      const sortDirection = metrica === 'ultimaSalida' ? -1 : -1; // Descendente para todas las métricas
+      const sortField = metrica === 'ultimaSalida' ? 'metricasDemanda.ultimaSalida' : `metricasDemanda.${metrica}`;
+
+      // Obtener total de documentos
+      const total = await Inventario.countDocuments(query);
+
+      // Obtener items ordenados por la métrica especificada
+      const inventario = await Inventario.find(query)
+        .skip(skip)
+        .limit(pageSize)
+        .lean()
+        .sort({ [sortField]: sortDirection, nombre: 1 }); // Orden secundario por nombre
+
+      res.status(200).json({
+        status: "success",
+        items: inventario,
+        totalItems: total,
+        page,
+        totalPages: Math.ceil(total / pageSize),
+      });
+    } catch (error) {
+      handleServerError(res, error, "Error al obtener inventario por demanda:");
     }
   }
 
