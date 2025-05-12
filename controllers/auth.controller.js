@@ -121,12 +121,31 @@ class AuthController {
       if (!refreshToken) {
         return res.status(400).json({ 
           status: 'error', 
-          message: 'Refresh token es requerido' 
+          message: 'Refresh token es requerido',
+          code: 'MISSING_REFRESH_TOKEN'
         });
       }
       
-      // Verificar token de refresco
-      const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+      // Usar try-catch interno para manejar la verificación del token
+      let decoded;
+      try {
+        decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+      } catch (tokenError) {
+        // Especificar en la respuesta si el token expiró o es inválido
+        if (tokenError.name === 'TokenExpiredError') {
+          return res.status(401).json({ 
+            status: 'error', 
+            message: 'Refresh token expirado',
+            code: 'REFRESH_TOKEN_EXPIRED'
+          });
+        }
+        
+        return res.status(401).json({ 
+          status: 'error', 
+          message: 'Refresh token inválido',
+          code: 'INVALID_REFRESH_TOKEN'
+        });
+      }
       
       // Buscar usuario para asegurar que existe
       const user = await User.findById(decoded.user.id);
@@ -145,10 +164,11 @@ class AuthController {
         accessToken
       });
     } catch (error) {
-      logger.error(`Error al refrescar token: ${error.message}`);
-      res.status(401).json({ 
+      logger.error(`Error inesperado al refrescar token: ${error.message}`);
+      res.status(500).json({ 
         status: 'error', 
-        message: 'Token de refresco inválido o expirado' 
+        message: 'Error interno al procesar el token',
+        code: 'INTERNAL_ERROR'
       });
     }
   }
@@ -212,63 +232,47 @@ class AuthController {
    * @param {Function} next - Función next de Express
    */
   async verifyToken(req, res, next) {
-    try {
-      const authHeader = req.header('Authorization');
-      
-      if (!authHeader) {
-        return res.status(401).json({ 
-          status: 'error', 
-          message: 'No hay token, autorización denegada' 
-        });
-      }
-      
-      // Extraer el token del encabezado "Bearer <token>"
-      const token = authHeader.split(' ')[1];
-      
-      if (!token) {
-        return res.status(401).json({ 
-          status: 'error', 
-          message: 'Formato de token inválido' 
-        });
-      }
-      
-      // Verificar token
-      const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-      
-      // Asegurarse de tener toda la info del usuario (no solo el ID)
-      const usuario = await User.findById(decoded.user.id).select('-password');
-      
-      if (!usuario) {
-        return res.status(401).json({ 
-          status: 'error', 
-          message: 'Usuario no encontrado' 
-        });
-      }
-      
-      // Adjuntar usuario completo a req.user
-      req.user = {
-        id: usuario._id,
-        username: usuario.username,
-        role: usuario.role
-      };
-      
-      next();
-    } catch (error) {
-      logger.error(`Error al verificar token: ${error.message}`);
-      
-      if (error.name === 'TokenExpiredError') {
-        return res.status(401).json({ 
-          status: 'error', 
-          message: 'Token expirado', 
-          code: 'TOKEN_EXPIRED' 
-        });
-      }
-      
-      res.status(401).json({ 
+    const authHeader = req.header('Authorization');
+    
+    if (!authHeader) {
+      return res.status(401).json({ 
         status: 'error', 
-        message: 'Token inválido' 
+        message: 'No hay token, autorización denegada' 
       });
     }
+    
+    // Extraer el token del encabezado "Bearer <token>"
+    const token = authHeader.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ 
+        status: 'error', 
+        message: 'Formato de token inválido' 
+      });
+    }
+    
+    // Usar el nuevo método
+    const result = await this.isValidToken(token);
+    
+    if (!result.valid) {
+      return res.status(401).json({ 
+        status: 'error', 
+        message: result.message,
+        code: result.code
+      });
+    }
+    
+    // El token es válido, extraer información del usuario
+    const usuario = await User.findById(result.decoded.user.id).select('-password');
+    
+    // Adjuntar usuario a req.user
+    req.user = {
+      id: usuario._id,
+      username: usuario.username,
+      role: usuario.role
+    };
+    
+    next();
   }
 
   /**
@@ -338,6 +342,35 @@ class AuthController {
       process.env.REFRESH_TOKEN_SECRET || process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: '7d' }
     );
+  }
+
+  /**
+   * Verifica si un token es válido y no ha expirado
+   * @param {string} token - Token JWT a verificar
+   * @returns {Object} Objeto con propiedades valid y message
+   */
+  async isValidToken(token) {
+    try {
+      // Intentar verificar el token
+      const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+      
+      // Verificar que el usuario sigue existiendo
+      const usuario = await User.findById(decoded.user.id);
+      if (!usuario) {
+        return { valid: false, message: 'Usuario no encontrado' };
+      }
+      
+      return { valid: true, decoded };
+    } catch (error) {
+      // No registrar como error la expiración de tokens, es un comportamiento esperado
+      if (error.name === 'TokenExpiredError') {
+        return { valid: false, message: 'Token expirado', code: 'TOKEN_EXPIRED' };
+      }
+      
+      // Para otros errores como malformed tokens, signature issues, etc.
+      logger.debug(`Error de verificación de token: ${error.message}`);
+      return { valid: false, message: 'Token inválido' };
+    }
   }
 }
 

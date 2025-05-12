@@ -19,6 +19,12 @@ router.post(
   authController.refreshToken.bind(authController)
 );
 
+// Ruta para cerrar sesión (sin protección)
+router.post(
+  '/logout',
+  authController.logout.bind(authController)
+);
+
 // Middleware de autenticación para las rutas siguientes
 router.use(authController.verifyToken.bind(authController));
 
